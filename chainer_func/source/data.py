@@ -36,8 +36,6 @@ class Data:
         self.data = data
         self.label = label
         self.index = np.arange(self.N)
-        self.i = 0
-        self.ind = np.random.permutation(self.data.shape[0])
 
     @property
     def N(self):
@@ -48,23 +46,21 @@ class Data:
         assert images.ndim == 4
         return augmentation(images, trans, flip)
 
-    def reseed(self):
-        self.i = 0
-        self.ind = np.random.permutation(self.data.shape[0])
-
-    def get(self, n=None, aug_trans=False, aug_flip=False, gpu=-1):
+    def get(self, n=None, shuffle=True, aug_trans=False, aug_flip=False, gpu=-1):
+        if shuffle:
+            ind = np.random.permutation(self.data.shape[0])
+        else:
+            ind = np.arange(self.data.shape[0])
         if n is None:
             n = self.data.shape[0]
-        index = self.ind[self.i:self.i + n] if self.i + n <= self.data.shape[0] \
-            else self.ind[self.i:] + self.ind[:(self.i + n) % self.data.shape[0]]
-
-        self.i = (self.i + n) % self.data.shape[0]
+        index = ind[:n]
         batch_data = self.data[index]
         batch_label = self.label[index]
         if aug_trans or aug_flip:
             batch_data = self._augmentation(batch_data, aug_trans, aug_flip)
         if gpu > -1:
-            return cuda.to_gpu(batch_data, device=gpu), cuda.to_gpu(batch_label, device=gpu)
+            return cuda.to_gpu(batch_data, device=gpu), \
+                   cuda.to_gpu(batch_label, device=gpu)
         else:
             return batch_data, batch_label
 
