@@ -3,12 +3,12 @@ import re
 import sys
 import json
 import time
+import errno
 import shutil
 import random
 import logging
 import argparse
 
-import torch
 import numpy as np
 from tensorboardX import SummaryWriter
 
@@ -22,9 +22,26 @@ exp_seed = random.randrange(sys.maxsize) % 10000
 def set_framework_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    try:
+        import torch
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    except ImportError:
+        pass
+    try:
+        import cupy as cp
+        cp.random.seed(seed)
+    except ImportError:
+        pass
+
+
+def make_sure_path_exists(path):
+    try:
+        os.makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
 
 
 def get_cmp_para(params, keys):
@@ -37,39 +54,41 @@ def get_cmp_para(params, keys):
 
 class ExpSaver:
 
-    def __init__(self, method, args, dir_keys=None, file_keys=None):
+    def __init__(self, task_solver, args, dir_keys=None, file_keys=None):
         if dir_keys is None:
             dir_keys = []
         if file_keys is None:
             file_keys = []
-        assert method is not None
+        assert task_solver is not None
         self.run_time = time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
-        args.method = method
-        # sometimes, the code is using docopt library.
+        args.task_solver = task_solver
         if not isinstance(args, dict):
+            # sometimes, the code uses docopt library.
             self.args = args
         else:
             self.args = argparse.Namespace()
             self.args.__dict__.update(args)
-        self.trainer, self.task = method.split("-")[:2]
+        self.task, self.trainer = task_solver.split("-")[:2]
         self.exp_marker = get_cmp_para(args.__dict__, file_keys)
-        self.log_dir = self.set_log_path(method, dir_keys)
+        self.log_dir = self.set_log_path(self.trainer, dir_keys)
         self.exp_seed = exp_seed
         self.save_params()
         self.keys = file_keys
         self.writer = None
+        self.board_path = ""
 
     def update_args(self, args):
-        self.args = args
-        self.exp_marker = get_cmp_para(args.__dict__, self.keys)
+        if not isinstance(args, dict):
+            self.args = args
+        self.exp_marker = get_cmp_para(self.args.__dict__, self.keys)
 
-    def set_log_path(self, method=None, tuned=None):
-        base = os.path.join(os.environ["HOME"], "project", "results")
-
+    def set_log_path(self, trainer, tuned=None):
         args = self.args.__dict__
-        marker = method + "-" + (args.get("dataset") if "dataset" in args else "toy")
+        base = os.path.join(os.environ["HOME"], "project", "results", self.task, args.get("dataset") if "dataset" in args else "toy")
+
+        marker = trainer
         if tuned:
-            marker += "-".join("%s=%s" % (e, str(self.args.__dict__.get(e))) for e in tuned)
+            marker += "-" + "-".join("%s=%s" % (e, str(self.args.__dict__.get(e))) for e in tuned)
             log_dir = os.path.join(base, "%s-%s_running" % (marker, self.run_time))
         else:
             log_dir = os.path.join(base, "%s-%s_running" % (marker, self.run_time))
@@ -88,6 +107,8 @@ class ExpSaver:
 
     def delete_dir(self):
         shutil.rmtree(self.log_dir)
+        if self.board_path:
+            shutil.rmtree(self.board_path)
 
     def finish_exp(self, keep_args=None):
         if keep_args is None:
@@ -116,7 +137,7 @@ class ExpSaver:
 
         if self.log_dir:
             with open(os.path.join(self.log_dir, "params.json"), "w") as fp:
-                json.dump(params, fp, indent=4)
+                json.dump(params, fp, indent=4, sort_keys=True)
 
         return params
 
@@ -147,10 +168,14 @@ class ExpSaver:
     def save_figure(self, figure, name=""):
         figure.savefig(os.path.join(self.log_dir, "exp_results_%s%s.png" % (self.exp_marker, name)))
 
-    def init_writer(self):
-        p = exp_seed
-        dir_marker = "%s_%s_%s_%s_%d" % (self.task, self.args.dataset, str(self.args.exp), self.run_time, p)
+    def init_writer(self, para):
+        if para is None:
+            para = []
+        para_str = '-'.join("%s=%s" % (e, str(self.args.__dict__[e])) for e in para)
+        dir_marker = os.path.join(self.task, self.args.dataset, "%s_%s_%s_%s" % (self.trainer, para_str, str(self.args.exp), self.run_time))
+        print(self.task, self.trainer)
         dir_path = os.path.join(os.environ['HOME'], 'project/runs', dir_marker)
+        self.board_path = dir_path
         self.writer = SummaryWriter(log_dir=dir_path)
 
 
