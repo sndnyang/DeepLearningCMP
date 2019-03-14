@@ -3,9 +3,7 @@ from . import quadratic_loss
 from . import weight_decay
 from . import adversarial_training
 from . import virtual_adversarial_training as vat
-from . import virtual_adversarial_training_plus as vat_p
 from . import virtual_adversarial_training_finite_diff as vat_finite_diff
-from . import vat_ext
 
 from . import error
 
@@ -17,16 +15,6 @@ adversarial_training = adversarial_training.adversarial_training
 LDS = vat.LDS
 average_LDS = vat.average_LDS
 virtual_adversarial_training = vat.virtual_adversarial_training
-virtual_adversarial_training_max_min = vat_p.virtual_adversarial_training_max_min
-virtual_adversarial_training_plus = vat_p.virtual_adversarial_training_plus
-virtual_adversarial_training_plus_plus = vat_p.virtual_adversarial_training_plus_plus
-virtual_adversarial_training_double = vat_ext.virtual_adversarial_training_double
-virtual_adversarial_training_double = vat_ext.virtual_adversarial_training_double
-virtual_adversarial_training_noise = vat_ext.virtual_adversarial_training_noise
-virtual_adversarial_training_rev = vat_ext.virtual_adversarial_training_rev
-virtual_adversarial_training_rev_double = vat_ext.virtual_adversarial_training_rev_double
-virtual_adversarial_training_sharp = vat_ext.virtual_adversarial_training_sharp
-
 
 LDS_finite_diff = vat_finite_diff.LDS_finite_diff
 average_LDS_finite_diff = vat_finite_diff.average_LDS_finite_diff
