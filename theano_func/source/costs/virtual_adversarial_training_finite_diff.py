@@ -7,6 +7,11 @@ from .adversarial_training import get_main_obj, get_normalized_vector, get_pertu
 from .virtual_adversarial_training import get_kl
 
 
+def error(pred, t):
+    # print("costs/error")
+    return T.sum(T.neq(T.argmax(pred, axis=1), T.argmax(t, axis=1)))
+
+
 def virtual_adversarial_training_finite_diff(x, t, forward_func,
                                              main_obj_type,
                                              epsilon,
@@ -28,7 +33,8 @@ def virtual_adversarial_training_finite_diff(x, t, forward_func,
     # print("#######################")
     ret = 0
     y = forward_func(x)
-    ret += get_main_obj(y, t, main_obj_type)
+    sup = get_main_obj(y, t, main_obj_type)
+    ret += sup
 
     if x_for_generating_adversarial_examples is not None:
         x = x_for_generating_adversarial_examples
@@ -50,12 +56,18 @@ def virtual_adversarial_training_finite_diff(x, t, forward_func,
     r_vadv = get_perturbation(d, epsilon, norm_constraint)
     if unchain_y:
         y_hat = theano.gradient.disconnected_grad(y)
-        vadv_cost = get_kl(forward_func(x + r_vadv), y_hat, main_obj_type).mean()
+        pred = forward_func(x + r_vadv)
+        vadv_cost = get_kl(pred, y_hat, main_obj_type).mean()
+        err = error(pred, y_hat)
     else:
-        vadv_cost = get_kl(forward_func(x + r_vadv), y, main_obj_type, include_ent_term=True).mean()
-    ret += lamb * vadv_cost
+        pred = forward_func(x + r_vadv)
+        vadv_cost = get_kl(pred, y, main_obj_type, include_ent_term=True).mean()
+        err = error(pred, y)
 
-    return ret
+    unsup = vadv_cost
+    ret += lamb * unsup
+
+    return ret, sup, unsup, err
 
 
 def LDS_finite_diff(x,
