@@ -1,6 +1,5 @@
 from chainer import Variable, optimizers, cuda, serializers
 
-from .vat_p import vat_plus, vat_double, vat_noise, vat_pp, vat_sharp
 from .utils import *
 
 
