@@ -1,3 +1,5 @@
+import os
+import sys
 import random
 
 import torch
@@ -15,20 +17,10 @@ def call_bn(bn, x, update_batch_stats=True):
         return bn(x)
 
 
-def adjust_learning_rate(optimizer, epoch, args):
-    """Sets the learning rate from start_epoch linearly to zero at the end"""
-    if epoch < args.epoch_decay_start:
-        return args.lr
-    lr = float(args.num_epochs - epoch) / (args.num_epochs - args.epoch_decay_start) * args.lr
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-    return lr
-
-
 def set_framework_seed(seed, debug=False):
     if debug:
-        # torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
     random.seed(seed)
     np.random.seed(seed)
     _ = torch.manual_seed(seed)
@@ -87,3 +79,33 @@ def weights_init_normal(m):
         m.weight = Parameter(tensor, requires_grad=True)
         if m.bias is not None:
             m.bias.data.zero_()
+
+
+def adjust_learning_rate(optimizer, epoch, args):
+    """Sets the learning rate from start_epoch linearly to zero at the end"""
+    if epoch < args.epoch_decay_start:
+        return args.lr
+    lr = float(args.num_epochs - epoch) / (args.num_epochs - args.epoch_decay_start) * args.lr
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+        param_group['betas'] = (0.5, 0.999)
+    return lr
+
+
+def load_checkpoint_by_marker(args, exp_marker):
+    base_dir = os.path.join(os.environ['HOME'], 'project/runs')
+    dir_path = os.path.join(base_dir, exp_marker)
+    c = 0
+    file_name = ""
+    for p in os.listdir(dir_path):
+        if args.resume in p:
+            c += 1
+            if c == 2:
+                print("can't resume, find 2")
+                sys.exit(-1)
+            file_name = os.path.join(dir_path, p, "model.pth")
+    if file_name == "":
+        print("can't resume, find 0")
+        sys.exit(-1)
+    checkpoint = torch.load(file_name)
+    return checkpoint
