@@ -6,14 +6,14 @@ import numpy
 
 
 class ADAM(Optimizer):
-    def __init__(self, cost, params, alpha=0.001):
-        self.alpha = theano.shared(numpy.array(alpha).astype(theano.config.floatX))
+    def __init__(self, cost, params, lr=0.001):
+        self.lr = theano.shared(numpy.array(lr).astype(theano.config.floatX))
         super(ADAM, self).__init__(cost, params)
 
     def _updates(self):
         updates = OrderedDict()
         t = theano.shared(numpy.array(1).astype(theano.config.floatX))
-        alpha = self.alpha
+        lr = self.lr
         beta_1 = numpy.array(0.9).astype(theano.config.floatX)
         beta_2 = numpy.array(0.999).astype(theano.config.floatX)
         epsilon = numpy.array(1.0 * 10 ** -8.0).astype(theano.config.floatX)
@@ -34,6 +34,6 @@ class ADAM(Optimizer):
             updates[v] = T.cast(beta_2 * v + (1 - beta_2) * (gparam * gparam), theano.config.floatX)
             m_hat = T.cast(updates[m] / (1 - beta_1 ** t), theano.config.floatX)
             v_hat = T.cast(updates[v] / (1 - beta_2 ** t), theano.config.floatX)
-            updates[param] = param - alpha * m_hat / (T.sqrt(v_hat) + epsilon)
+            updates[param] = param - lr * m_hat / (T.sqrt(v_hat) + epsilon)
         updates[t] = t + 1
         return updates
