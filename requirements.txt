@@ -7,7 +7,7 @@ scikit-learn==0.20.3
 scipy==1.2.1
 tensorboard==1.13.1
 tensorboardX==1.6
-tensorflow-gpu==1.13.1
+tensorflow-gpu==1.15.0
 Theano==1.0.3
 torch==1.1.0
 torchvision==0.2.3
